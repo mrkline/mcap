@@ -147,7 +147,6 @@ fn read_record(op: u8, body: &[u8]) -> McapResult<records::Record<'_>> {
         ($b:ident) => {{
             let mut cur = Cursor::new($b);
             let res = cur.read_le()?;
-            assert_eq!($b.len() as u64, cur.position());
             res
         }};
     }
