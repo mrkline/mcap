@@ -194,6 +194,8 @@ fn read_record(op: u8, body: &[u8]) -> McapResult<records::Record<'_>> {
         op::ATTACHMENT => {
             let mut c = Cursor::new(body);
             let header: records::AttachmentHeader = c.read_le()?;
+            let header_len = c.position() as usize;
+
             let mut data = &body[c.position() as usize..body.len() - 4];
             if header.data_len != data.len() as u64 {
                 warn!(
@@ -203,7 +205,7 @@ fn read_record(op: u8, body: &[u8]) -> McapResult<records::Record<'_>> {
                 assert!(header.data_len < data.len() as u64);
                 data = &data[..header.data_len as usize];
             }
-            let crc = Cursor::new(&body[body.len() - 4..]).read_le()?;
+            let crc: u32 = Cursor::new(&body[header_len + data.len()..]).read_le()?;
 
             // We usually leave CRCs to higher-level readers -
             // (ChunkReader, read_summary(), etc.) - but
@@ -215,7 +217,7 @@ fn read_record(op: u8, body: &[u8]) -> McapResult<records::Record<'_>> {
             //    much sense to have users check it.
             //    (What would they do? lol reserialize the header?)
             if crc != 0 {
-                let calculated = crc32(&body[..body.len() - 4]);
+                let calculated = crc32(&body[..header_len + data.len()]);
                 if crc != calculated {
                     return Err(McapError::BadAttachmentCrc {
                         saved: crc,
