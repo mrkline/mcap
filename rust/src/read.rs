@@ -157,14 +157,19 @@ fn read_record(op: u8, body: &[u8]) -> McapResult<records::Record<'_>> {
         op::SCHEMA => {
             let mut c = Cursor::new(body);
             let header: records::SchemaHeader = c.read_le()?;
-            let data = Cow::Borrowed(&body[c.position() as usize..]);
+            let mut data = &body[c.position() as usize..];
             if header.data_len != data.len() as u32 {
                 warn!(
                     "Schema {}'s data length doesn't match the total schema length",
                     header.name
                 );
+                assert!(header.data_len < data.len() as u32);
+                data = &data[..header.data_len as usize];
             }
-            Record::Schema { header, data }
+            Record::Schema {
+                header,
+                data: Cow::Borrowed(data),
+            }
         }
         op::CHANNEL => Record::Channel(record!(body)),
         op::MESSAGE => {
@@ -176,9 +181,11 @@ fn read_record(op: u8, body: &[u8]) -> McapResult<records::Record<'_>> {
         op::CHUNK => {
             let mut c = Cursor::new(body);
             let header: records::ChunkHeader = c.read_le()?;
-            let data = &body[c.position() as usize..];
+            let mut data = &body[c.position() as usize..];
             if header.compressed_size != data.len() as u64 {
                 warn!("Chunk's compressed length doesn't match its header");
+                assert!(header.compressed_size < data.len() as u64);
+                data = &data[..header.compressed_size as usize];
             }
             Record::Chunk { header, data }
         }
@@ -187,12 +194,14 @@ fn read_record(op: u8, body: &[u8]) -> McapResult<records::Record<'_>> {
         op::ATTACHMENT => {
             let mut c = Cursor::new(body);
             let header: records::AttachmentHeader = c.read_le()?;
-            let data = &body[c.position() as usize..body.len() - 4];
+            let mut data = &body[c.position() as usize..body.len() - 4];
             if header.data_len != data.len() as u64 {
                 warn!(
                     "Attachment {}'s data length doesn't match the total schema length",
                     header.name
                 );
+                assert!(header.data_len < data.len() as u64);
+                data = &data[..header.data_len as usize];
             }
             let crc = Cursor::new(&body[body.len() - 4..]).read_le()?;
 
