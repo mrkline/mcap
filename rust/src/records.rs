@@ -14,7 +14,7 @@ use std::{
 
 use binrw::io::{Read, Seek, Write};
 use binrw::*;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 /// Opcodes for MCAP file records.
 ///
