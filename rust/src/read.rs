@@ -158,14 +158,13 @@ fn read_record(op: u8, body: &[u8]) -> McapResult<records::Record<'_>> {
             let mut c = Cursor::new(body);
             let header: records::SchemaHeader = c.read_le()?;
             let mut data = &body[c.position() as usize..];
-            if header.data_len != data.len() as u32 {
-                warn!(
-                    "Schema {}'s data length doesn't match the total schema length",
-                    header.name
-                );
-                assert!(header.data_len < data.len() as u32);
-                data = &data[..header.data_len as usize];
+            if header.data_len > data.len() as u32 {
+                return Err(McapError::BadSchemaLength {
+                    header: header.data_len,
+                    available: data.len() as u32,
+                });
             }
+            data = &data[..header.data_len as usize];
             Record::Schema {
                 header,
                 data: Cow::Borrowed(data),
@@ -182,11 +181,13 @@ fn read_record(op: u8, body: &[u8]) -> McapResult<records::Record<'_>> {
             let mut c = Cursor::new(body);
             let header: records::ChunkHeader = c.read_le()?;
             let mut data = &body[c.position() as usize..];
-            if header.compressed_size != data.len() as u64 {
-                warn!("Chunk's compressed length doesn't match its header");
-                assert!(header.compressed_size < data.len() as u64);
-                data = &data[..header.compressed_size as usize];
+            if header.compressed_size > data.len() as u64 {
+                return Err(McapError::BadChunkLength {
+                    header: header.compressed_size,
+                    available: data.len() as u64,
+                });
             }
+            data = &data[..header.compressed_size as usize];
             Record::Chunk { header, data }
         }
         op::MESSAGE_INDEX => Record::MessageIndex(record!(body)),
@@ -196,15 +197,14 @@ fn read_record(op: u8, body: &[u8]) -> McapResult<records::Record<'_>> {
             let header: records::AttachmentHeader = c.read_le()?;
             let header_len = c.position() as usize;
 
-            let mut data = &body[c.position() as usize..body.len() - 4];
-            if header.data_len != data.len() as u64 {
-                warn!(
-                    "Attachment {}'s data length doesn't match the total schema length",
-                    header.name
-                );
-                assert!(header.data_len < data.len() as u64);
-                data = &data[..header.data_len as usize];
+            let mut data = &body[header_len..body.len() - 4];
+            if header.data_len > data.len() as u64 {
+                return Err(McapError::BadAttachmentLength {
+                    header: header.data_len,
+                    available: data.len() as u64,
+                });
             }
+            data = &data[..header.data_len as usize];
             let crc: u32 = Cursor::new(&body[header_len + data.len()..]).read_le()?;
 
             // We usually leave CRCs to higher-level readers -
