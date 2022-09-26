@@ -49,21 +49,25 @@ pub enum Record<'a> {
     Header(Header),
     Footer(Footer),
     Schema {
+        #[serde(flatten)]
         header: SchemaHeader,
         data: Cow<'a, [u8]>,
     },
     Channel(Channel),
     Message {
+        #[serde(flatten)]
         header: MessageHeader,
         data: Cow<'a, [u8]>,
     },
     Chunk {
+        #[serde(flatten)]
         header: ChunkHeader,
         data: &'a [u8],
     },
     MessageIndex(MessageIndex),
     ChunkIndex(ChunkIndex),
     Attachment {
+        #[serde(flatten)]
         header: AttachmentHeader,
         data: &'a [u8],
     },
