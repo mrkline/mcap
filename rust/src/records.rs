@@ -201,6 +201,7 @@ pub struct SchemaHeader {
     #[bw(write_with = write_string)]
     pub encoding: String,
 
+    #[serde(skip)]
     pub data_len: u32,
 }
 
@@ -416,6 +417,7 @@ pub struct AttachmentHeader {
     #[bw(write_with = write_string)]
     pub content_type: String,
 
+    #[serde(skip)]
     pub data_len: u64,
 }
 
